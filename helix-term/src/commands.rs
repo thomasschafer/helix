@@ -636,6 +636,9 @@ fn move_impl(cx: &mut Context, move_fn: MoveFn, dir: Direction, behaviour: Movem
     let mut annotations = view.text_annotations(doc, None);
 
     let selection = doc.selection(view.id).clone().transform(|range| {
+        if count > 1 {
+            push_jump(view, doc);
+        };
         move_fn(
             text,
             range,
@@ -1145,6 +1148,7 @@ where
             .selection(view.id)
             .clone()
             .transform(|range| move_fn(text, range, count, behavior));
+        push_jump(view, doc);
         doc.set_selection(view.id, selection);
     };
     cx.editor.apply_motion(motion)
@@ -1680,6 +1684,10 @@ pub fn scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor
     let config = cx.editor.config();
     let (view, doc) = current!(cx.editor);
 
+    if offset > 1 {
+        push_jump(view, doc);
+    }
+
     let range = doc.selection(view.id).primary();
     let text = doc.text().slice(..);
 
@@ -1924,6 +1932,7 @@ fn select_all(cx: &mut Context) {
     let (view, doc) = current!(cx.editor);
 
     let end = doc.text().len_chars();
+    push_jump(view, doc);
     doc.set_selection(view.id, Selection::single(0, end))
 }
 
@@ -3581,6 +3590,7 @@ fn goto_first_diag(cx: &mut Context) {
         Some(diag) => Selection::single(diag.range.start, diag.range.end),
         None => return,
     };
+    push_jump(view, doc);
     doc.set_selection(view.id, selection);
 }
 
@@ -3590,6 +3600,7 @@ fn goto_last_diag(cx: &mut Context) {
         Some(diag) => Selection::single(diag.range.start, diag.range.end),
         None => return,
     };
+    push_jump(view, doc);
     doc.set_selection(view.id, selection);
 }
 
@@ -3612,6 +3623,7 @@ fn goto_next_diag(cx: &mut Context) {
             Some(diag) => Selection::single(diag.range.start, diag.range.end),
             None => return,
         };
+        push_jump(view, doc);
         doc.set_selection(view.id, selection);
     };
 
@@ -3640,6 +3652,7 @@ fn goto_prev_diag(cx: &mut Context) {
             Some(diag) => Selection::single(diag.range.end, diag.range.start),
             None => return,
         };
+        push_jump(view, doc);
         doc.set_selection(view.id, selection);
     };
     cx.editor.apply_motion(motion)
@@ -3668,6 +3681,7 @@ fn goto_first_change_impl(cx: &mut Context, reverse: bool) {
         };
         if hunk != Hunk::NONE {
             let range = hunk_range(hunk, doc.text().slice(..));
+            push_jump(view, doc);
             doc.set_selection(view.id, Selection::single(range.anchor, range.head));
         }
     }
@@ -3723,6 +3737,7 @@ fn goto_next_change_impl(cx: &mut Context, direction: Direction) {
             }
         });
 
+        push_jump(view, doc);
         doc.set_selection(view.id, selection)
     };
     cx.editor.apply_motion(motion);
@@ -5042,6 +5057,7 @@ fn match_brackets(cx: &mut Context) {
         }
     });
 
+    push_jump(view, doc);
     doc.set_selection(view.id, selection);
 }
 
@@ -5298,6 +5314,7 @@ fn goto_ts_object_impl(cx: &mut Context, object: &'static str, direction: Direct
                 }
             });
 
+            push_jump(view, doc);
             doc.set_selection(view.id, selection);
         } else {
             editor.set_status("Syntax-tree is not available in current buffer");
@@ -5440,6 +5457,7 @@ fn select_textobject(cx: &mut Context, objtype: textobject::TextObject) {
                         _ => range,
                     }
                 });
+                push_jump(view, doc);
                 doc.set_selection(view.id, selection);
             };
             cx.editor.apply_motion(textobject);
@@ -6113,7 +6131,10 @@ fn jump_to_label(cx: &mut Context, labels: Vec<Range>, behaviour: Movement) {
                 } else {
                     range.with_direction(Direction::Forward)
                 };
-                doc_mut!(cx.editor, &doc).set_selection(view, range.into());
+                let doc_mut = doc_mut!(cx.editor, &doc);
+                let view_mut = view_mut!(cx.editor);
+                push_jump(view_mut, doc_mut);
+                doc_mut.set_selection(view, range.into());
             }
         });
     });
