@@ -23,7 +23,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use std::{
     borrow::Cow,
     cell::Cell,
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     fs,
     io::{self, stdin},
     num::NonZeroUsize,
@@ -55,6 +55,8 @@ use arc_swap::{
     access::{DynAccess, DynGuard},
     ArcSwap,
 };
+
+pub const DEFAULT_AUTO_SAVE_DELAY: u64 = 3000;
 
 fn deserialize_duration_millis<'de, D>(deserializer: D) -> Result<Duration, D::Error>
 where
@@ -267,8 +269,11 @@ pub struct Config {
     pub auto_completion: bool,
     /// Automatic formatting on save. Defaults to true.
     pub auto_format: bool,
-    /// Automatic save on focus lost. Defaults to false.
-    pub auto_save: bool,
+    /// Automatic save on focus lost and/or after delay.
+    /// Time delay in milliseconds since last edit after which auto save timer triggers.
+    /// Time delay defaults to false with 3000ms delay. Focus lost defaults to false.
+    #[serde(deserialize_with = "deserialize_auto_save")]
+    pub auto_save: AutoSave,
     /// Set a global text_width
     pub text_width: usize,
     /// Time in milliseconds since last keypress before idle timers trigger.
@@ -775,6 +780,61 @@ impl WhitespaceRender {
     }
 }
 
+#[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct AutoSave {
+    /// Auto save after a delay in milliseconds. Defaults to disabled.
+    #[serde(default)]
+    pub after_delay: AutoSaveAfterDelay,
+    /// Auto save on focus lost. Defaults to false.
+    #[serde(default)]
+    pub focus_lost: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AutoSaveAfterDelay {
+    #[serde(default)]
+    /// Enable auto save after delay. Defaults to false.
+    pub enable: bool,
+    #[serde(default = "default_auto_save_delay")]
+    /// Time delay in milliseconds. Defaults to [DEFAULT_AUTO_SAVE_DELAY].
+    pub timeout: u64,
+}
+
+impl Default for AutoSaveAfterDelay {
+    fn default() -> Self {
+        Self {
+            enable: false,
+            timeout: DEFAULT_AUTO_SAVE_DELAY,
+        }
+    }
+}
+
+fn default_auto_save_delay() -> u64 {
+    DEFAULT_AUTO_SAVE_DELAY
+}
+
+fn deserialize_auto_save<'de, D>(deserializer: D) -> Result<AutoSave, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize, Serialize)]
+    #[serde(untagged, deny_unknown_fields, rename_all = "kebab-case")]
+    enum AutoSaveToml {
+        EnableFocusLost(bool),
+        AutoSave(AutoSave),
+    }
+
+    match AutoSaveToml::deserialize(deserializer)? {
+        AutoSaveToml::EnableFocusLost(focus_lost) => Ok(AutoSave {
+            focus_lost,
+            ..Default::default()
+        }),
+        AutoSaveToml::AutoSave(auto_save) => Ok(auto_save),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct WhitespaceCharacters {
@@ -885,7 +945,7 @@ impl Default for Config {
             auto_pairs: AutoPairConfig::default(),
             auto_completion: true,
             auto_format: true,
-            auto_save: false,
+            auto_save: AutoSave::default(),
             idle_timeout: Duration::from_millis(250),
             completion_timeout: Duration::from_millis(250),
             preview_completion_insert: true,
@@ -945,6 +1005,65 @@ pub struct Breakpoint {
     pub log_message: Option<String>,
 }
 
+const LAST_OPENED_DOCS_MAX_LEN: usize = 100;
+
+#[derive(Debug, Clone)]
+pub struct LastOpenedDocs {
+    paths: VecDeque<PathBuf>,
+}
+
+impl Default for LastOpenedDocs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl LastOpenedDocs {
+    pub fn new() -> Self {
+        let paths = VecDeque::with_capacity(LAST_OPENED_DOCS_MAX_LEN);
+        Self { paths }
+    }
+
+    pub fn len(&self) -> usize {
+        self.paths.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.paths.is_empty()
+    }
+
+    pub fn pop_back(&mut self) -> Option<PathBuf> {
+        self.paths.pop_back()
+    }
+
+    // Favour using Editor::extend_last_opened_docs rather than this method directly
+    fn extend(&mut self, paths_to_add: Vec<PathBuf>) {
+        self.paths.extend(paths_to_add);
+
+        let num_to_remove = (self.paths.len() as i64) - (LAST_OPENED_DOCS_MAX_LEN as i64);
+        if num_to_remove > 0 {
+            for _ in 0..num_to_remove {
+                self.paths.pop_front();
+            }
+        }
+    }
+
+    fn retain<F>(&mut self, f: F)
+    where
+        F: FnMut(&PathBuf) -> bool,
+    {
+        self.paths.retain(f);
+    }
+}
+
+impl IntoIterator for LastOpenedDocs {
+    type Item = PathBuf;
+    type IntoIter = std::collections::vec_deque::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.paths.into_iter()
+    }
+}
 use futures_util::stream::{Flatten, Once};
 
 pub struct Editor {
@@ -1018,6 +1137,9 @@ pub struct Editor {
 
     pub mouse_down_range: Option<Range>,
     pub cursor_cache: CursorCache,
+
+    /// The most recently opened docs that have since been closed, with newly closed docs added to the end.
+    pub last_opened_docs: LastOpenedDocs,
 }
 
 pub type Motion = Box<dyn Fn(&mut Editor)>;
@@ -1135,6 +1257,7 @@ impl Editor {
             handlers,
             mouse_down_range: None,
             cursor_cache: CursorCache::default(),
+            last_opened_docs: LastOpenedDocs::new(),
         }
     }
 
@@ -2085,6 +2208,19 @@ impl Editor {
             doc.ensure_view_init(current_view.id);
             current_view.id
         }
+    }
+
+    pub fn extend_last_opened_docs(&mut self, closed_docs: Vec<PathBuf>) {
+        let currently_opened_paths = self
+            .documents()
+            .filter_map(|doc| doc.path())
+            .cloned()
+            .collect::<Vec<_>>();
+
+        self.last_opened_docs.retain(|doc_path| {
+            !closed_docs.contains(doc_path) && !currently_opened_paths.contains(doc_path)
+        });
+        self.last_opened_docs.extend(closed_docs);
     }
 }
 
