@@ -216,7 +216,17 @@ impl MappableCommand {
     pub fn execute(&self, cx: &mut Context) {
         match &self {
             Self::Typable { name, args, doc: _ } => {
-                let args: Vec<Cow<str>> = args.iter().map(Cow::from).collect();
+                let path = doc!(cx.editor)
+                    .path()
+                    .and_then(|path_buf| path_buf.clone().into_os_string().into_string().ok())
+                    .unwrap_or_else(|| "".to_string());
+                let args: Vec<Cow<str>> = args
+                    .iter()
+                    .map(|s| {
+                        let s = s.replace("%{filename}", &path);
+                        Cow::from(s)
+                    })
+                    .collect();
                 if let Some(command) = typed::TYPABLE_COMMAND_MAP.get(name.as_str()) {
                     let mut cx = compositor::Context {
                         editor: cx.editor,
