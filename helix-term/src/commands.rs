@@ -217,14 +217,19 @@ impl MappableCommand {
     pub fn execute(&self, cx: &mut Context) {
         match &self {
             Self::Typable { name, args, doc: _ } => {
-                let path = doc!(cx.editor)
+                let doc = doc!(cx.editor);
+                let path = doc
                     .path()
-                    .and_then(|path_buf| path_buf.clone().into_os_string().into_string().ok())
-                    .unwrap_or_else(|| "".to_string());
+                    .and_then(|path_buf| path_buf.to_str().map(|s| s.to_string()))
+                    .unwrap_or_default();
+                let rel_path = doc.relative_path().unwrap_or_default();
+                let rel_path_str = rel_path.to_str().unwrap_or_default();
                 let args: Vec<Cow<str>> = args
                     .iter()
                     .map(|s| {
-                        let s = s.replace("%{filename}", &path);
+                        let s = s
+                            .replace("%{filename}", &path)
+                            .replace("%{relative_filename}", rel_path_str);
                         Cow::from(s)
                     })
                     .collect();
