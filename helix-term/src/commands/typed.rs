@@ -184,9 +184,10 @@ fn buffer_close_by_ids_impl(
             cx.editor.switch(*first, Action::Replace);
         }
         bail!(
-            "{} unsaved buffer(s) remaining: {:?}",
+            "{} unsaved buffer{} remaining: {:?}",
             modified_names.len(),
-            modified_names
+            if modified_names.len() == 1 { "" } else { "s" },
+            modified_names,
         );
     }
 
@@ -702,9 +703,10 @@ pub(super) fn buffers_remaining_impl(editor: &mut Editor) -> anyhow::Result<()> 
             editor.switch(*first, Action::Replace);
         }
         bail!(
-            "{} unsaved buffer(s) remaining: {:?}",
+            "{} unsaved buffer{} remaining: {:?}",
             modified_names.len(),
-            modified_names
+            if modified_names.len() == 1 { "" } else { "s" },
+            modified_names,
         );
     }
     Ok(())
