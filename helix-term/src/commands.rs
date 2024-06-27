@@ -213,25 +213,46 @@ macro_rules! static_commands {
     }
 }
 
+const FILENAME_PLACEHOLDER: &str = "%{filename}";
+const RELATIVE_FILENAME_PLACEHOLDER: &str = "%{relative_filename}";
+const LINE_NUM_PLACEHOLDER: &str = "%{line_num}";
+
 impl MappableCommand {
+    fn apply_command_expansions(&self, cx: &mut Context, s: &String) -> Cow<str> {
+        let doc = doc!(cx.editor);
+
+        let mut s = s.to_string();
+        if s.contains(FILENAME_PLACEHOLDER) {
+            let path = doc
+                .path()
+                .and_then(|path_buf| path_buf.to_str().map(|s| s.to_string()))
+                .unwrap_or_default();
+
+            s = s.replace(FILENAME_PLACEHOLDER, &path);
+        }
+        if s.contains(RELATIVE_FILENAME_PLACEHOLDER) {
+            let rel_path = doc.relative_path().unwrap_or_default();
+            let rel_path_name = rel_path.to_str().unwrap_or_default().to_string();
+            s = s.replace(RELATIVE_FILENAME_PLACEHOLDER, &rel_path_name);
+        }
+        if s.contains(LINE_NUM_PLACEHOLDER) {
+            let view = view!(cx.editor);
+            let cursor = doc
+                .selection(view.id)
+                .primary()
+                .cursor(doc.text().slice(..));
+            let current_line = doc.text().char_to_line(cursor) + 1;
+            s = s.replace(LINE_NUM_PLACEHOLDER, &current_line.to_string());
+        }
+        Cow::from(s)
+    }
+
     pub fn execute(&self, cx: &mut Context) {
         match &self {
             Self::Typable { name, args, doc: _ } => {
-                let doc = doc!(cx.editor);
-                let path = doc
-                    .path()
-                    .and_then(|path_buf| path_buf.to_str().map(|s| s.to_string()))
-                    .unwrap_or_default();
-                let rel_path = doc.relative_path().unwrap_or_default();
-                let rel_path_str = rel_path.to_str().unwrap_or_default();
                 let args: Vec<Cow<str>> = args
                     .iter()
-                    .map(|s| {
-                        let s = s
-                            .replace("%{filename}", &path)
-                            .replace("%{relative_filename}", rel_path_str);
-                        Cow::from(s)
-                    })
+                    .map(|s| self.apply_command_expansions(cx, s))
                     .collect();
                 if let Some(command) = typed::TYPABLE_COMMAND_MAP.get(name.as_str()) {
                     let mut cx = compositor::Context {
