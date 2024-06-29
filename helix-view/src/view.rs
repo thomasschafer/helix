@@ -21,7 +21,7 @@ use std::{
     fmt,
 };
 
-const JUMP_LIST_CAPACITY: usize = 30;
+const JUMP_LIST_CAPACITY: usize = 300;
 
 type Jump = (DocumentId, Selection);
 
