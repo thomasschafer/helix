@@ -1464,6 +1464,7 @@ fn find_char_line_ending(
             Range::point(range.cursor(text)).put_cursor(text, pos, true)
         }
     });
+    push_jump(view, doc);
     doc.set_selection(view.id, selection);
 }
 
@@ -1544,6 +1545,7 @@ fn find_char_impl<F, M: CharMatcher + Clone + Copy>(
             }
         })
     });
+    push_jump(view, doc);
     doc.set_selection(view.id, selection);
 }
 
@@ -4943,6 +4945,7 @@ fn expand_selection(cx: &mut Context) {
                 // save current selection so it can be restored using shrink_selection
                 view.object_selections.push(current_selection.clone());
 
+                push_jump(view, doc);
                 doc.set_selection(view.id, selection);
             }
         }
@@ -4957,6 +4960,7 @@ fn shrink_selection(cx: &mut Context) {
         // try to restore previous selection
         if let Some(prev_selection) = view.object_selections.pop() {
             if current_selection.contains(&prev_selection) {
+                push_jump(view, doc);
                 doc.set_selection(view.id, prev_selection);
                 return;
             } else {
@@ -4968,6 +4972,7 @@ fn shrink_selection(cx: &mut Context) {
         if let Some(syntax) = doc.syntax() {
             let text = doc.text().slice(..);
             let selection = object::shrink_selection(syntax, text, current_selection.clone());
+            push_jump(view, doc);
             doc.set_selection(view.id, selection);
         }
     };
