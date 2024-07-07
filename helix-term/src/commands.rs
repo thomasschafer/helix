@@ -5515,7 +5515,7 @@ fn select_textobject(cx: &mut Context, objtype: textobject::TextObject, find_nex
         textobject::TextObject::Around => "Match around",
         _ => return,
     };
-    let help_text = [
+    let mut help_text = [
         ("w", "Word"),
         ("W", "WORD"),
         ("p", "Paragraph"),
@@ -5527,8 +5527,12 @@ fn select_textobject(cx: &mut Context, objtype: textobject::TextObject, find_nex
         ("e", "Data structure entry (tree-sitter)"),
         ("m", "Closest surrounding pair (tree-sitter)"),
         ("g", "Change"),
-        (" ", "... or any character acting as a pair"),
-    ];
+    ]
+    .to_vec();
+    if !find_next {
+        help_text.push(("n", "Next ..."));
+    }
+    help_text.push((" ", "... or any character acting as a pair"));
 
     cx.editor.autoinfo = Some(Info::new(title, &help_text));
 }
