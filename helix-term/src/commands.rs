@@ -213,6 +213,7 @@ macro_rules! static_commands {
 const FILENAME_PLACEHOLDER: &str = "%{filename}";
 const RELATIVE_FILENAME_PLACEHOLDER: &str = "%{relative_filename}";
 const LINE_NUM_PLACEHOLDER: &str = "%{line_num}";
+const WORKING_DIR_PLACEHOLDER: &str = "%{working_dir}";
 
 impl MappableCommand {
     fn apply_command_expansions(&self, cx: &mut Context, s: &String) -> Cow<str> {
@@ -240,6 +241,13 @@ impl MappableCommand {
                 .cursor(doc.text().slice(..));
             let current_line = doc.text().char_to_line(cursor) + 1;
             s = s.replace(LINE_NUM_PLACEHOLDER, &current_line.to_string());
+        }
+        if s.contains(WORKING_DIR_PLACEHOLDER) {
+            let working_dir = helix_stdx::env::current_working_dir()
+                .to_str()
+                .map(|s| s.to_string())
+                .unwrap_or_default();
+            s = s.replace(WORKING_DIR_PLACEHOLDER, &working_dir);
         }
         Cow::from(s)
     }
