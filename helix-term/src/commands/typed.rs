@@ -2637,6 +2637,13 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         signature: CommandSignature::all(completers::filename),
     },
     TypableCommand {
+        name: "open-no-completions",
+        aliases: &["onc"],
+        doc: "Open a file from disk into the current view (with no filename completions).",
+        fun: open,
+        signature: CommandSignature::none(),
+    },
+    TypableCommand {
         name: "open-recent",
         aliases: &["or"],
         doc: "Open the most recently closed file.",
