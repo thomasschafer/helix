@@ -913,24 +913,24 @@ fn goto_previous_buffer(cx: &mut Context) {
 fn goto_buffer(editor: &mut Editor, direction: Direction, count: usize) {
     let current = view!(editor).doc;
 
+    let docs = editor.documents_ordered();
+    let doc_ids = docs.iter().map(|doc| doc.id());
+
     let id = match direction {
         Direction::Forward => {
-            let iter = editor.documents.keys();
             // skip 'count' times past current buffer
-            iter.cycle().skip_while(|id| *id != &current).nth(count)
+            doc_ids.cycle().skip_while(|id| id != &current).nth(count)
         }
         Direction::Backward => {
-            let iter = editor.documents.keys();
             // skip 'count' times past current buffer
-            iter.rev()
+            doc_ids
+                .rev()
                 .cycle()
-                .skip_while(|id| *id != &current)
+                .skip_while(|id| id != &current)
                 .nth(count)
         }
     }
     .unwrap();
-
-    let id = *id;
 
     editor.switch(id, Action::Replace);
 }

@@ -372,6 +372,53 @@ fn buffer_previous(
     Ok(())
 }
 
+fn buffer_move_left(
+    cx: &mut compositor::Context,
+    _args: &[Cow<str>],
+    event: PromptEvent,
+) -> anyhow::Result<()> {
+    buffer_move_impl(cx, event, true)
+}
+
+fn buffer_move_right(
+    cx: &mut compositor::Context,
+    _args: &[Cow<str>],
+    event: PromptEvent,
+) -> anyhow::Result<()> {
+    buffer_move_impl(cx, event, false)
+}
+
+fn buffer_move_impl(
+    cx: &mut compositor::Context,
+    event: PromptEvent,
+    reverse: bool,
+) -> anyhow::Result<()> {
+    if event != PromptEvent::Validate {
+        return Ok(());
+    }
+
+    let (_, doc) = current!(cx.editor);
+    let current = doc.ordering_key();
+
+    let mut docs = cx.editor.documents_ordered_mut();
+    if reverse {
+        docs.reverse();
+    }
+    let mut docs = docs
+        .iter_mut()
+        .skip_while(|doc| doc.ordering_key() != current)
+        .take(2)
+        .collect::<Vec<_>>();
+
+    if let [cur, prev] = &mut docs[..] {
+        let prev_ordering_key = prev.ordering_key();
+        prev.set_ordering_key(cur.ordering_key());
+        cur.set_ordering_key(prev_ordering_key);
+    }
+
+    Ok(())
+}
+
 fn write_impl(
     cx: &mut compositor::Context,
     path: Option<&Cow<str>>,
@@ -2650,6 +2697,20 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         aliases: &["bp", "bprev"],
         doc: "Goto previous buffer.",
         fun: buffer_previous,
+        signature: CommandSignature::none(),
+    },
+    TypableCommand {
+        name: "buffer-move-left",
+        aliases: &[],
+        doc: "Move buffer to the left",
+        fun: buffer_move_left,
+        signature: CommandSignature::none(),
+    },
+    TypableCommand {
+        name: "buffer-move-right",
+        aliases: &[],
+        doc: "Move buffer to the right",
+        fun: buffer_move_right,
         signature: CommandSignature::none(),
     },
     TypableCommand {

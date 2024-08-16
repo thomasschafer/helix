@@ -1986,6 +1986,18 @@ impl Editor {
         self.documents.values()
     }
 
+    pub fn documents_ordered(&self) -> Vec<&Document> {
+        let mut docs = self.documents.values().collect::<Vec<_>>();
+        docs.sort_by_key(|doc| doc.ordering_key());
+        docs
+    }
+
+    pub fn documents_ordered_mut(&mut self) -> Vec<&mut Document> {
+        let mut docs = self.documents.values_mut().collect::<Vec<_>>();
+        docs.sort_by_key(|doc| doc.ordering_key());
+        docs
+    }
+
     #[inline]
     pub fn documents_mut(&mut self) -> impl Iterator<Item = &mut Document> {
         self.documents.values_mut()
