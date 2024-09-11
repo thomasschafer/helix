@@ -1798,7 +1798,7 @@ pub fn scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor
     let (view, doc) = current!(cx.editor);
     let mut view_offset = doc.view_offset(view.id);
 
-    if offset > 1 {
+    if offset > 3 {
         push_jump(view, doc);
     }
 
