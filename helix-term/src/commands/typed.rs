@@ -9,6 +9,7 @@ use super::*;
 use helix_core::fuzzy::fuzzy_match;
 use helix_core::indent::MAX_INDENT;
 use helix_core::{line_ending, shellwords::Shellwords};
+use helix_stdx::path::home_dir;
 use helix_view::document::{read_to_string, DEFAULT_LANGUAGE_NAME};
 use helix_view::editor::{CloseError, ConfigEvent};
 use serde_json::Value;
@@ -1180,18 +1181,23 @@ fn change_current_directory(
         return Ok(());
     }
 
-    let dir = args
-        .first()
-        .context("target directory not provided")?
-        .as_ref();
-    let dir = helix_stdx::path::expand_tilde(Path::new(dir));
+    let dir = match args.first().map(AsRef::as_ref) {
+        Some("-") => cx
+            .editor
+            .last_cwd
+            .clone()
+            .ok_or(anyhow!("No previous working directory"))?,
+        Some(input_path) => helix_stdx::path::expand_tilde(Path::new(input_path)).to_path_buf(),
+        None => home_dir()?,
+    };
 
-    helix_stdx::env::set_current_working_dir(dir)?;
+    cx.editor.last_cwd = helix_stdx::env::set_current_working_dir(dir)?;
 
     cx.editor.set_status(format!(
         "Current working directory is now {}",
         helix_stdx::env::current_working_dir().display()
     ));
+
     Ok(())
 }
 
@@ -2595,7 +2601,8 @@ fn read(cx: &mut compositor::Context, args: &[Cow<str>], event: PromptEvent) -> 
     ensure!(args.len() == 1, "only the file name is expected");
 
     let filename = args.first().unwrap();
-    let path = PathBuf::from(filename.to_string());
+    let path = helix_stdx::path::expand_tilde(PathBuf::from(filename.to_string()));
+
     ensure!(
         path.exists() && path.is_file(),
         "path is not a file: {:?}",
@@ -3313,8 +3320,8 @@ pub(super) fn command_mode(cx: &mut Context) {
                 {
                     completer(editor, word)
                         .into_iter()
-                        .map(|(range, file)| {
-                            let file = shellwords::escape(file);
+                        .map(|(range, mut file)| {
+                            file.content = shellwords::escape(file.content);
 
                             // offset ranges to input
                             let offset = input.len() - word_len;

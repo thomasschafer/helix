@@ -115,6 +115,7 @@
 | kdl | ✓ | ✓ | ✓ |  |
 | koka | ✓ |  | ✓ | `koka` |
 | kotlin | ✓ |  |  | `kotlin-language-server` |
+| koto | ✓ | ✓ | ✓ | `koto-ls` |
 | latex | ✓ | ✓ |  | `texlab` |
 | ld | ✓ |  | ✓ |  |
 | ldif | ✓ |  |  |  |
@@ -134,7 +135,7 @@
 | mermaid | ✓ |  |  |  |
 | meson | ✓ |  | ✓ | `mesonlsp` |
 | mint |  |  |  | `mint` |
-| mojo | ✓ | ✓ | ✓ | `mojo-lsp-server` |
+| mojo | ✓ | ✓ | ✓ | `magic` |
 | move | ✓ |  |  |  |
 | msbuild | ✓ |  | ✓ |  |
 | nasm | ✓ | ✓ |  |  |
@@ -146,7 +147,7 @@
 | nunjucks | ✓ |  |  |  |
 | ocaml | ✓ |  | ✓ | `ocamllsp` |
 | ocaml-interface | ✓ |  |  | `ocamllsp` |
-| odin | ✓ |  | ✓ | `ols` |
+| odin | ✓ | ✓ | ✓ | `ols` |
 | ohm | ✓ | ✓ | ✓ |  |
 | opencl | ✓ | ✓ | ✓ | `clangd` |
 | openscad | ✓ |  |  | `openscad-lsp` |
@@ -208,6 +209,7 @@
 | tact | ✓ | ✓ | ✓ |  |
 | task | ✓ |  |  |  |
 | tcl | ✓ |  | ✓ |  |
+| teal | ✓ |  |  |  |
 | templ | ✓ |  |  | `templ` |
 | textproto | ✓ | ✓ | ✓ |  |
 | tfvars | ✓ |  | ✓ | `terraform-ls` |
