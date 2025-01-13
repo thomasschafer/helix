@@ -3530,6 +3530,7 @@ fn open(cx: &mut Context, open: Open) {
     let text = doc.text().slice(..);
     let contents = doc.text();
     let selection = doc.selection(view.id);
+    let mut offs = 0;
 
     let mut ranges = SmallVec::with_capacity(selection.len());
 
@@ -3606,7 +3607,7 @@ fn open(cx: &mut Context, open: Open) {
         let text = text.repeat(count);
 
         // calculate new selection ranges
-        let pos = above_next_line_end_index + above_next_line_end_width;
+        let pos = offs + above_next_line_end_index + above_next_line_end_width;
         let comment_len = continue_comment_token
             .map(|token| token.len() + 1) // `+ 1` for the extra space added
             .unwrap_or_default();
@@ -3618,6 +3619,9 @@ fn open(cx: &mut Context, open: Open) {
                 pos + (i * (1 + indent_len + comment_len)) + indent_len + comment_len,
             ));
         }
+
+        // update the offset for the next range
+        offs += text.chars().count();
 
         (
             above_next_line_end_index,
