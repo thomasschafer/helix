@@ -21,6 +21,7 @@ cl-lsp = { command = "cl-lsp", args = [ "stdio" ] }
 clangd = { command = "clangd" }
 clojure-lsp = { command = "clojure-lsp" }
 cmake-language-server = { command = "cmake-language-server" }
+codeql = { command = "codeql", args = ["execute", "language-server", "--check-errors=ON_CHANGE"] }
 crystalline = { command = "crystalline", args = ["--stdio"] }
 cs = { command = "cs", args = ["launch", "--contrib", "smithy-language-server", "--", "0"] }
 csharp-ls = { command = "csharp-ls" }
@@ -340,16 +341,17 @@ source = { git = "https://github.com/Beaglefoot/tree-sitter-awk", rev = "a799bc5
 [[language]]
 name = "protobuf"
 scope = "source.proto"
-injection-regex = "protobuf"
+injection-regex = "proto"
 file-types = ["proto"]
 language-servers = [ "bufls", "pbkit" ]
 comment-token = "//"
 block-comment-tokens = { start = "/*", end = "*/" }
 indent = { tab-width = 2, unit = "  " }
+grammar = "proto"
 
 [[grammar]]
-name = "protobuf"
-source = { git = "https://github.com/yusdacra/tree-sitter-protobuf", rev = "19c211a01434d9f03efff99f85e19f967591b175"}
+name = "proto"
+source = { git = "https://github.com/sdoerner/tree-sitter-proto", rev = "778ab6ed18a7fcf82c83805a87d63376c51e80bc"}
 
 [[language]]
 name = "textproto"
@@ -486,6 +488,8 @@ name = "jsonc"
 scope = "source.json"
 injection-regex = "jsonc"
 file-types = ["jsonc", { glob = "tsconfig.json" }]
+comment-token = "//"
+block-comment-tokens = { start = "/*", end = "*/" }
 grammar = "json"
 language-servers = [ "vscode-json-language-server" ]
 auto-format = true
@@ -1291,7 +1295,7 @@ formatter = { command = "dune", args = ["format-dune-file"] }
 name = "lua"
 injection-regex = "lua"
 scope = "source.lua"
-file-types = ["lua"]
+file-types = ["lua", "rockspec"]
 shebangs = ["lua", "luajit"]
 roots = [".luarc.json", ".luacheckrc", ".stylua.toml", "selene.toml", ".git"]
 comment-token = "--"
@@ -1315,7 +1319,7 @@ file-types = ["tl"]
 comment-tokens = "--"
 block-comment-tokens = { start = "--[[", end = "--]]" }
 roots = [ "tlconfig.lua" ]
-language-servers = [ "teal-lsp" ]
+language-servers = [ "teal-language-server" ]
 
 [[language]]
 name = "svelte"
@@ -1346,7 +1350,7 @@ source = { git = "https://github.com/ikatyang/tree-sitter-vue", rev = "91fe27547
 [[language]]
 name = "yaml"
 scope = "source.yaml"
-file-types = ["yml", "yaml", { glob = ".prettierrc" }, { glob = ".clangd" }, { glob = ".clang-format" }]
+file-types = ["yml", "yaml", { glob = ".prettierrc" }, { glob = ".clangd" }, { glob = ".clang-format" }, { glob = ".clang-tidy" }]
 comment-token = "#"
 indent = { tab-width = 2, unit = "  " }
 language-servers = [ "yaml-language-server", "ansible-language-server" ]
@@ -2896,7 +2900,7 @@ indent = { tab-width = 2, unit = "  " }
 
 [[grammar]]
 name = "matlab"
-source = { git = "https://github.com/acristoffers/tree-sitter-matlab", rev = "6071891a8c39600203eba20513666cf93b4d650a" }
+source = { git = "https://github.com/acristoffers/tree-sitter-matlab", rev = "b0a0198b182574cd3ca0447264c83331901b9338" }
 
 [[language]]
 name = "ponylang"
@@ -3609,7 +3613,7 @@ source = { git = "https://github.com/mtoohey31/tree-sitter-ld", rev = "0e9695ae0
 name = "hyprlang"
 scope = "source.hyprlang"
 roots = ["hyprland.conf"]
-file-types = [ { glob = "hyprland.conf" }, { glob = "hyprpaper.conf" }, { glob = "hypridle.conf" }, { glob = "hyprlock.conf" } ]
+file-types = [ { glob = "hypr/*.conf" }]
 comment-token = "#"
 grammar = "hyprlang"
 language-servers = ["hyprls"]
@@ -4013,7 +4017,7 @@ indent = { tab-width = 4, unit = "    " }
 
 [[grammar]]
 name = "vento"
-source = { git = "https://github.com/ventojs/tree-sitter-vento", rev = "3321077d7446c1b3b017c294fd56ce028ed817fe" }
+source = { git = "https://github.com/ventojs/tree-sitter-vento", rev = "3b32474bc29584ea214e4e84b47102408263fe0e" }
 
 [[language]]
 name = "nginx"
@@ -4032,3 +4036,18 @@ indent = { tab-width = 4, unit = "    " }
 [[grammar]]
 name = "nginx"
 source = { git = "https://gitlab.com/joncoole/tree-sitter-nginx", rev = "b4b61db443602b69410ab469c122c01b1e685aa0" }
+
+[[language]]
+name = "codeql"
+scope = "source.ql"
+file-types = ["ql", "qll"]
+comment-token = "//"
+block-comment-tokens = { start = "/*", end = "*/" }
+indent = { tab-width = 2, unit = "  " }
+injection-regex = "codeql"
+grammar = "ql"
+language-servers = ["codeql"]
+
+[[grammar]]
+name = "ql"
+source = { git = "https://github.com/tree-sitter/tree-sitter-ql", rev = "1fd627a4e8bff8c24c11987474bd33112bead857" }

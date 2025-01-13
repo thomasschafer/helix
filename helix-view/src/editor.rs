@@ -1138,7 +1138,7 @@ pub struct Editor {
     redraw_timer: Pin<Box<Sleep>>,
     last_motion: Option<Motion>,
     pub last_completion: Option<CompleteAction>,
-    pub last_cwd: Option<PathBuf>,
+    last_cwd: Option<PathBuf>,
 
     pub exit_code: i32,
 
@@ -2296,6 +2296,16 @@ impl Editor {
             !closed_docs.contains(doc_path) && !currently_opened_paths.contains(doc_path)
         });
         self.last_opened_docs.extend(closed_docs);
+    }
+
+    pub fn set_cwd(&mut self, path: &Path) -> std::io::Result<()> {
+        self.last_cwd = helix_stdx::env::set_current_working_dir(path)?;
+        self.clear_doc_relative_paths();
+        Ok(())
+    }
+
+    pub fn get_last_cwd(&mut self) -> Option<&Path> {
+        self.last_cwd.as_deref()
     }
 }
 
