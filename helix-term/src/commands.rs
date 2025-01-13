@@ -243,23 +243,23 @@ const RELATIVE_FILENAME_PLACEHOLDER: &str = "%{relative_filename}";
 const LINE_NUM_PLACEHOLDER: &str = "%{line_num}";
 const WORKING_DIR_PLACEHOLDER: &str = "%{working_dir}";
 
+// TODO: remove this when https://github.com/helix-editor/helix/pull/12320 is merged
 impl MappableCommand {
     fn apply_command_expansions(&self, cx: &mut Context, s: &String) -> Cow<str> {
         let doc = doc!(cx.editor);
 
         let mut s = s.to_string();
         if s.contains(FILENAME_PLACEHOLDER) {
-            let path = doc
-                .path()
-                .and_then(|path_buf| path_buf.to_str().map(|s| s.to_string()))
-                .unwrap_or_default();
-
-            s = s.replace(FILENAME_PLACEHOLDER, &path);
+            if let Some(path) = doc.path().and_then(|path_buf| path_buf.to_str()) {
+                s = s.replace(FILENAME_PLACEHOLDER, path);
+            }
         }
         if s.contains(RELATIVE_FILENAME_PLACEHOLDER) {
-            let rel_path = doc.relative_path().unwrap_or_default();
-            let rel_path_name = rel_path.to_str().unwrap_or_default().to_string();
-            s = s.replace(RELATIVE_FILENAME_PLACEHOLDER, &rel_path_name);
+            if let Some(rel_path) = doc.relative_path() {
+                if let Some(rel_path_name) = rel_path.to_str() {
+                    s = s.replace(RELATIVE_FILENAME_PLACEHOLDER, rel_path_name);
+                }
+            }
         }
         if s.contains(LINE_NUM_PLACEHOLDER) {
             let view = view!(cx.editor);
@@ -271,11 +271,12 @@ impl MappableCommand {
             s = s.replace(LINE_NUM_PLACEHOLDER, &current_line.to_string());
         }
         if s.contains(WORKING_DIR_PLACEHOLDER) {
-            let working_dir = helix_stdx::env::current_working_dir()
+            if let Some(working_dir) = helix_stdx::env::current_working_dir()
                 .to_str()
                 .map(|s| s.to_string())
-                .unwrap_or_default();
-            s = s.replace(WORKING_DIR_PLACEHOLDER, &working_dir);
+            {
+                s = s.replace(WORKING_DIR_PLACEHOLDER, &working_dir);
+            }
         }
         Cow::from(s)
     }
