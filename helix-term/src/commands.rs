@@ -250,16 +250,17 @@ impl MappableCommand {
 
         let mut s = s.to_string();
         if s.contains(FILENAME_PLACEHOLDER) {
-            if let Some(path) = doc.path().and_then(|path_buf| path_buf.to_str()) {
-                s = s.replace(FILENAME_PLACEHOLDER, path);
-            }
+            let cwd = helix_stdx::env::current_working_dir();
+            let path = doc.path().unwrap_or(&cwd).to_str().unwrap();
+            s = s.replace(FILENAME_PLACEHOLDER, path);
         }
         if s.contains(RELATIVE_FILENAME_PLACEHOLDER) {
-            if let Some(rel_path) = doc.relative_path() {
-                if let Some(rel_path_name) = rel_path.to_str() {
-                    s = s.replace(RELATIVE_FILENAME_PLACEHOLDER, rel_path_name);
-                }
-            }
+            let rel_path = if let Some(rel_path) = doc.relative_path() {
+                rel_path.to_str().unwrap()
+            } else {
+                "[scratch]"
+            };
+            s = s.replace(RELATIVE_FILENAME_PLACEHOLDER, rel_path);
         }
         if s.contains(LINE_NUM_PLACEHOLDER) {
             let view = view!(cx.editor);
@@ -271,12 +272,8 @@ impl MappableCommand {
             s = s.replace(LINE_NUM_PLACEHOLDER, &current_line.to_string());
         }
         if s.contains(WORKING_DIR_PLACEHOLDER) {
-            if let Some(working_dir) = helix_stdx::env::current_working_dir()
-                .to_str()
-                .map(|s| s.to_string())
-            {
-                s = s.replace(WORKING_DIR_PLACEHOLDER, &working_dir);
-            }
+            let cwd = helix_stdx::env::current_working_dir();
+            s = s.replace(WORKING_DIR_PLACEHOLDER, cwd.to_str().unwrap());
         }
         Cow::from(s)
     }
