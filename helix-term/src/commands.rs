@@ -2292,6 +2292,8 @@ fn search_next_or_prev_impl(cx: &mut Context, movement: Movement, direction: Dir
                     true,
                 );
             }
+            let (view, doc) = current!(cx.editor);
+            push_jump(view, doc);
         } else {
             let error = format!("Invalid regex: {}", query);
             cx.editor.set_error(error);
