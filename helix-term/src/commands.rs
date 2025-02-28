@@ -241,55 +241,10 @@ macro_rules! static_commands {
     }
 }
 
-const FILENAME_PLACEHOLDER: &str = "{{filename}}";
-const RELATIVE_FILENAME_PLACEHOLDER: &str = "{{relative_filename}}";
-const LINE_NUM_PLACEHOLDER: &str = "{{line_num}}";
-const WORKING_DIR_PLACEHOLDER: &str = "{{working_dir}}";
-
-// TODO: remove this when https://github.com/helix-editor/helix/pull/12320 is merged
 impl MappableCommand {
-    fn apply_command_expansions(&self, cx: &mut Context, s: &str) -> Cow<str> {
-        let doc = doc!(cx.editor);
-
-        let mut s = s.to_string();
-        if s.contains(FILENAME_PLACEHOLDER) {
-            let cwd = helix_stdx::env::current_working_dir();
-            let path = doc.path().unwrap_or(&cwd).to_str().unwrap();
-            s = s.replace(FILENAME_PLACEHOLDER, path);
-        }
-        if s.contains(RELATIVE_FILENAME_PLACEHOLDER) {
-            let rel_path = if let Some(rel_path) = doc.relative_path() {
-                rel_path.to_str().unwrap()
-            } else {
-                "[scratch]"
-            };
-            s = s.replace(RELATIVE_FILENAME_PLACEHOLDER, rel_path);
-        }
-        if s.contains(LINE_NUM_PLACEHOLDER) {
-            let view = view!(cx.editor);
-            let cursor = doc
-                .selection(view.id)
-                .primary()
-                .cursor(doc.text().slice(..));
-            let current_line = doc.text().char_to_line(cursor) + 1;
-            s = s.replace(LINE_NUM_PLACEHOLDER, &current_line.to_string());
-        }
-        if s.contains(WORKING_DIR_PLACEHOLDER) {
-            let cwd = helix_stdx::env::current_working_dir();
-            s = s.replace(WORKING_DIR_PLACEHOLDER, cwd.to_str().unwrap());
-        }
-        Cow::from(s)
-    }
-
     pub fn execute(&self, cx: &mut Context) {
         match &self {
             Self::Typable { name, args, doc: _ } => {
-                let args = args
-                    .split_whitespace()
-                    .map(|s| self.apply_command_expansions(cx, s))
-                    .collect::<Vec<_>>()
-                    .join(" ");
-
                 if let Some(command) = typed::TYPABLE_COMMAND_MAP.get(name.as_str()) {
                     let mut cx = compositor::Context {
                         editor: cx.editor,
@@ -297,7 +252,7 @@ impl MappableCommand {
                         scroll: None,
                     };
                     if let Err(e) =
-                        typed::execute_command(&mut cx, command, &args, PromptEvent::Validate)
+                        typed::execute_command(&mut cx, command, args, PromptEvent::Validate)
                     {
                         cx.editor.set_error(format!("{}", e));
                     }
