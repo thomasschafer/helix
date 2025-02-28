@@ -239,7 +239,7 @@ fn buffer_close(
 
 fn open_recent(
     cx: &mut compositor::Context,
-    _args: &[Cow<str>],
+    _args: Args,
     event: PromptEvent,
 ) -> anyhow::Result<()> {
     if event != PromptEvent::Validate {
@@ -367,7 +367,7 @@ fn buffer_previous(
 
 fn buffer_move_left(
     cx: &mut compositor::Context,
-    _args: &[Cow<str>],
+    _args: Args,
     event: PromptEvent,
 ) -> anyhow::Result<()> {
     buffer_move_impl(cx, event, true)
@@ -375,7 +375,7 @@ fn buffer_move_left(
 
 fn buffer_move_right(
     cx: &mut compositor::Context,
-    _args: &[Cow<str>],
+    _args: Args,
     event: PromptEvent,
 ) -> anyhow::Result<()> {
     buffer_move_impl(cx, event, false)
@@ -2646,14 +2646,22 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         aliases: &["onc"],
         doc: "Open a file from disk into the current view (with no filename completions).",
         fun: open,
-        signature: CommandSignature::none(),
+        completer: CommandCompleter::none(),
+        signature: Signature {
+            positionals: (1, None),
+            ..Signature::DEFAULT
+        },
     },
     TypableCommand {
         name: "open-recent",
         aliases: &["or"],
         doc: "Open the most recently closed file.",
         fun: open_recent,
-        signature: CommandSignature::none(),
+        completer: CommandCompleter::none(),
+        signature: Signature {
+            positionals: (0, Some(0)),
+            ..Signature::DEFAULT
+        },
     },
     TypableCommand {
         name: "buffer-close",
@@ -2748,14 +2756,22 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         aliases: &[],
         doc: "Move buffer to the left",
         fun: buffer_move_left,
-        signature: CommandSignature::none(),
+        completer: CommandCompleter::none(),
+        signature: Signature {
+            positionals: (0, Some(0)),
+            ..Signature::DEFAULT
+        },
     },
     TypableCommand {
         name: "buffer-move-right",
         aliases: &[],
         doc: "Move buffer to the right",
         fun: buffer_move_right,
-        signature: CommandSignature::none(),
+        completer: CommandCompleter::none(),
+        signature: Signature {
+            positionals: (0, Some(0)),
+            ..Signature::DEFAULT
+        },
     },
     TypableCommand {
         name: "write",

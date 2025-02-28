@@ -241,14 +241,14 @@ macro_rules! static_commands {
     }
 }
 
-const FILENAME_PLACEHOLDER: &str = "%{filename}";
-const RELATIVE_FILENAME_PLACEHOLDER: &str = "%{relative_filename}";
-const LINE_NUM_PLACEHOLDER: &str = "%{line_num}";
-const WORKING_DIR_PLACEHOLDER: &str = "%{working_dir}";
+const FILENAME_PLACEHOLDER: &str = "{{filename}}";
+const RELATIVE_FILENAME_PLACEHOLDER: &str = "{{relative_filename}}";
+const LINE_NUM_PLACEHOLDER: &str = "{{line_num}}";
+const WORKING_DIR_PLACEHOLDER: &str = "{{working_dir}}";
 
 // TODO: remove this when https://github.com/helix-editor/helix/pull/12320 is merged
 impl MappableCommand {
-    fn apply_command_expansions(&self, cx: &mut Context, s: &String) -> Cow<str> {
+    fn apply_command_expansions(&self, cx: &mut Context, s: &str) -> Cow<str> {
         let doc = doc!(cx.editor);
 
         let mut s = s.to_string();
@@ -284,10 +284,11 @@ impl MappableCommand {
     pub fn execute(&self, cx: &mut Context) {
         match &self {
             Self::Typable { name, args, doc: _ } => {
-                let args: Vec<Cow<str>> = args
-                    .iter()
+                let args = args
+                    .split_whitespace()
                     .map(|s| self.apply_command_expansions(cx, s))
-                    .collect();
+                    .collect::<Vec<_>>()
+                    .join(" ");
 
                 if let Some(command) = typed::TYPABLE_COMMAND_MAP.get(name.as_str()) {
                     let mut cx = compositor::Context {
@@ -296,7 +297,7 @@ impl MappableCommand {
                         scroll: None,
                     };
                     if let Err(e) =
-                        typed::execute_command(&mut cx, command, args, PromptEvent::Validate)
+                        typed::execute_command(&mut cx, command, &args, PromptEvent::Validate)
                     {
                         cx.editor.set_error(format!("{}", e));
                     }
