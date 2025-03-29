@@ -417,13 +417,13 @@ fn write_impl(cx: &mut compositor::Context, path: Option<&str>, force: bool) -> 
     let jobs = &mut cx.jobs;
     let (view, doc) = current!(cx.editor);
 
-    if config.trim_trailing_whitespace {
+    if doc.trim_trailing_whitespace() {
         trim_trailing_whitespace(doc, view.id);
     }
     if config.trim_final_newlines {
         trim_final_newlines(doc, view.id);
     }
-    if config.insert_final_newline {
+    if doc.insert_final_newline() {
         insert_final_newline(doc, view.id);
     }
 
@@ -829,13 +829,13 @@ pub fn write_all_impl(
         let doc = doc_mut!(cx.editor, &doc_id);
         let view = view_mut!(cx.editor, target_view);
 
-        if config.trim_trailing_whitespace {
+        if doc.trim_trailing_whitespace() {
             trim_trailing_whitespace(doc, target_view);
         }
         if config.trim_final_newlines {
             trim_final_newlines(doc, target_view);
         }
-        if config.insert_final_newline {
+        if doc.insert_final_newline() {
             insert_final_newline(doc, target_view);
         }
 
@@ -1713,7 +1713,7 @@ fn lsp_stop(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> any
 
         for doc in cx.editor.documents_mut() {
             if let Some(client) = doc.remove_language_server_by_name(ls_name) {
-                doc.clear_diagnostics(Some(client.id()));
+                doc.clear_diagnostics_for_language_server(client.id());
                 doc.reset_all_inlay_hints();
                 doc.inlay_hints_oudated = true;
             }
@@ -2237,7 +2237,6 @@ fn reflow(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyho
     }
 
     let scrolloff = cx.editor.config().scrolloff;
-    let cfg_text_width: usize = cx.editor.config().text_width;
     let (view, doc) = current!(cx.editor);
 
     // Find the text_width by checking the following sources in order:
@@ -2248,8 +2247,7 @@ fn reflow(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyho
         .first()
         .map(|num| num.parse::<usize>())
         .transpose()?
-        .or_else(|| doc.language_config().and_then(|config| config.text_width))
-        .unwrap_or(cfg_text_width);
+        .unwrap_or_else(|| doc.text_width());
 
     let rope = doc.text();
 
@@ -2731,7 +2729,7 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         fun: buffer_close,
         completer: CommandCompleter::all(completers::buffer),
         signature: Signature {
-            positionals: (0, Some(0)),
+            positionals: (0, None),
             ..Signature::DEFAULT
         },
     },
@@ -2742,7 +2740,7 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         fun: force_buffer_close,
         completer: CommandCompleter::all(completers::buffer),
         signature: Signature {
-            positionals: (0, Some(0)),
+            positionals: (0, None),
             ..Signature::DEFAULT
         },
     },
@@ -3064,7 +3062,7 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         fun: theme,
         completer: CommandCompleter::positional(&[completers::theme]),
         signature: Signature {
-            positionals: (1, Some(1)),
+            positionals: (0, Some(1)),
             ..Signature::DEFAULT
         },
     },
