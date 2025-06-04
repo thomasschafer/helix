@@ -719,9 +719,6 @@ fn move_impl(cx: &mut Context, move_fn: MoveFn, dir: Direction, behaviour: Movem
     let mut annotations = view.text_annotations(doc, None);
 
     let selection = doc.selection(view.id).clone().transform(|range| {
-        if count > 1 {
-            push_jump(view, doc);
-        };
         move_fn(
             text,
             range,
@@ -733,6 +730,9 @@ fn move_impl(cx: &mut Context, move_fn: MoveFn, dir: Direction, behaviour: Movem
         )
     });
     drop(annotations);
+    if count > 1 {
+        push_jump(view, doc);
+    };
     doc.set_selection(view.id, selection);
 }
 
