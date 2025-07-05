@@ -18,6 +18,7 @@
 | c | ✓ | ✓ | ✓ | `clangd` |
 | c-sharp | ✓ | ✓ |  | `OmniSharp` |
 | cabal |  |  |  | `haskell-language-server-wrapper` |
+| caddyfile | ✓ | ✓ | ✓ |  |
 | cairo | ✓ | ✓ | ✓ | `cairo-language-server` |
 | capnp | ✓ |  | ✓ |  |
 | cel | ✓ |  |  |  |
@@ -30,7 +31,7 @@
 | common-lisp | ✓ |  | ✓ | `cl-lsp` |
 | cpon | ✓ |  | ✓ |  |
 | cpp | ✓ | ✓ | ✓ | `clangd` |
-| crystal | ✓ | ✓ |  | `crystalline` |
+| crystal | ✓ | ✓ | ✓ | `crystalline`, `ameba-ls` |
 | css | ✓ |  | ✓ | `vscode-css-language-server` |
 | csv | ✓ |  |  |  |
 | cue | ✓ |  |  | `cuelsp` |
@@ -77,6 +78,7 @@
 | git-commit | ✓ | ✓ |  |  |
 | git-config | ✓ | ✓ |  |  |
 | git-ignore | ✓ |  |  |  |
+| git-notes | ✓ |  |  |  |
 | git-rebase | ✓ |  |  |  |
 | gjs | ✓ | ✓ | ✓ | `typescript-language-server`, `vscode-eslint-language-server`, `ember-language-server` |
 | gleam | ✓ | ✓ |  | `gleam` |
@@ -183,12 +185,13 @@
 | powershell | ✓ |  |  |  |
 | prisma | ✓ | ✓ |  | `prisma-language-server` |
 | prolog | ✓ |  | ✓ | `swipl` |
+| properties | ✓ | ✓ |  |  |
 | protobuf | ✓ | ✓ | ✓ | `buf`, `pb`, `protols` |
 | prql | ✓ |  |  |  |
 | pug | ✓ |  |  |  |
 | purescript | ✓ | ✓ |  | `purescript-language-server` |
 | python | ✓ | ✓ | ✓ | `ty`, `ruff`, `jedi-language-server`, `pylsp` |
-| qml | ✓ |  | ✓ | `qmlls` |
+| qml | ✓ | ✓ | ✓ | `qmlls` |
 | quarto | ✓ |  | ✓ |  |
 | quint | ✓ |  |  | `quint-language-server` |
 | r | ✓ |  |  | `R` |
