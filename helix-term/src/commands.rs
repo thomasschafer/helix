@@ -379,7 +379,8 @@ impl MappableCommand {
         search_selection, "Use current selection as search pattern",
         search_selection_detect_word_boundaries, "Use current selection as the search pattern, automatically wrapping with `\\b` on word boundaries",
         make_search_word_bounded, "Modify current search to make it word bounded",
-        global_search, "Global search in workspace folder",
+        global_search, "Global search in workspace folder (regex)",
+        global_search_fixed_strings, "Global search in workspace folder (fixed strings)",
         extend_line, "Select current line, if already selected, extend to another line based on the anchor",
         extend_line_below, "Select current line, if already selected, extend to next line",
         extend_line_above, "Select current line, if already selected, extend to previous line",
@@ -741,6 +742,9 @@ fn move_impl(cx: &mut Context, move_fn: MoveFn, dir: Direction, behaviour: Movem
         )
     });
     drop(annotations);
+    if count > 1 {
+        push_jump(view, doc);
+    };
     doc.set_selection(view.id, selection);
 }
 
@@ -914,24 +918,24 @@ fn goto_previous_buffer(cx: &mut Context) {
 fn goto_buffer(editor: &mut Editor, direction: Direction, count: usize) {
     let current = view!(editor).doc;
 
+    let docs = editor.documents_ordered();
+    let doc_ids = docs.iter().map(|doc| doc.id());
+
     let id = match direction {
         Direction::Forward => {
-            let iter = editor.documents.keys();
             // skip 'count' times past current buffer
-            iter.cycle().skip_while(|id| *id != &current).nth(count)
+            doc_ids.cycle().skip_while(|id| id != &current).nth(count)
         }
         Direction::Backward => {
-            let iter = editor.documents.keys();
             // skip 'count' times past current buffer
-            iter.rev()
+            doc_ids
+                .rev()
                 .cycle()
-                .skip_while(|id| *id != &current)
+                .skip_while(|id| id != &current)
                 .nth(count)
         }
     }
     .unwrap();
-
-    let id = *id;
 
     editor.switch(id, Action::Replace);
 }
@@ -1256,6 +1260,7 @@ where
             .selection(view.id)
             .clone()
             .transform(|range| move_fn(text, range, count, behavior));
+        push_jump(view, doc);
         doc.set_selection(view.id, selection);
     };
     cx.editor.apply_motion(motion)
@@ -1540,6 +1545,7 @@ fn find_char_line_ending(
             Range::point(range.cursor(text)).put_cursor(text, pos, true)
         }
     });
+    push_jump(view, doc);
     doc.set_selection(view.id, selection);
 }
 
@@ -1620,6 +1626,7 @@ fn find_char_impl<F, M: CharMatcher + Clone + Copy>(
             }
         })
     });
+    push_jump(view, doc);
     doc.set_selection(view.id, selection);
 }
 
@@ -1822,6 +1829,10 @@ pub fn scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor
     let config = cx.editor.config();
     let (view, doc) = current!(cx.editor);
     let mut view_offset = doc.view_offset(view.id);
+
+    if offset > 3 {
+        push_jump(view, doc);
+    }
 
     let range = doc.selection(view.id).primary();
     let text = doc.text().slice(..);
@@ -2074,6 +2085,7 @@ fn select_all(cx: &mut Context) {
     let (view, doc) = current!(cx.editor);
 
     let end = doc.text().len_chars();
+    push_jump(view, doc);
     doc.set_selection(view.id, Selection::single(0, end))
 }
 
@@ -2317,6 +2329,8 @@ fn search_next_or_prev_impl(cx: &mut Context, movement: Movement, direction: Dir
                     true,
                 );
             }
+            let (view, doc) = current!(cx.editor);
+            push_jump(view, doc);
         } else {
             let error = format!("Invalid regex: {}", query);
             cx.editor.set_error(error);
@@ -2449,6 +2463,14 @@ fn make_search_word_bounded(cx: &mut Context) {
 }
 
 fn global_search(cx: &mut Context) {
+    global_search_impl(cx, false)
+}
+
+fn global_search_fixed_strings(cx: &mut Context) {
+    global_search_impl(cx, true)
+}
+
+fn global_search_impl(cx: &mut Context, fixed_strings: bool) {
     #[derive(Debug)]
     struct FileResult {
         path: PathBuf,
@@ -2467,6 +2489,7 @@ fn global_search(cx: &mut Context) {
 
     struct GlobalSearchConfig {
         smart_case: bool,
+        fixed_strings: bool,
         file_picker_config: helix_view::editor::FilePickerConfig,
         directory_style: Style,
         number_style: Style,
@@ -2476,6 +2499,7 @@ fn global_search(cx: &mut Context) {
     let config = cx.editor.config();
     let config = GlobalSearchConfig {
         smart_case: config.search.smart_case,
+        fixed_strings,
         file_picker_config: config.file_picker.clone(),
         directory_style: cx.editor.theme.get("ui.text.directory"),
         number_style: cx.editor.theme.get("constant.numeric.integer"),
@@ -2529,6 +2553,7 @@ fn global_search(cx: &mut Context) {
 
         let matcher = match RegexMatcherBuilder::new()
             .case_smart(config.smart_case)
+            .fixed_strings(config.fixed_strings)
             .build(query)
         {
             Ok(matcher) => {
@@ -3938,6 +3963,7 @@ fn goto_first_diag(cx: &mut Context) {
         Some(diag) => Selection::single(diag.range.start, diag.range.end),
         None => return,
     };
+    push_jump(view, doc);
     doc.set_selection(view.id, selection);
     view.diagnostics_handler
         .immediately_show_diagnostic(doc, view.id);
@@ -3949,6 +3975,7 @@ fn goto_last_diag(cx: &mut Context) {
         Some(diag) => Selection::single(diag.range.start, diag.range.end),
         None => return,
     };
+    push_jump(view, doc);
     doc.set_selection(view.id, selection);
     view.diagnostics_handler
         .immediately_show_diagnostic(doc, view.id);
@@ -3972,6 +3999,7 @@ fn goto_next_diag(cx: &mut Context) {
             Some(diag) => Selection::single(diag.range.start, diag.range.end),
             None => return,
         };
+        push_jump(view, doc);
         doc.set_selection(view.id, selection);
         view.diagnostics_handler
             .immediately_show_diagnostic(doc, view.id);
@@ -4001,6 +4029,7 @@ fn goto_prev_diag(cx: &mut Context) {
             Some(diag) => Selection::single(diag.range.end, diag.range.start),
             None => return,
         };
+        push_jump(view, doc);
         doc.set_selection(view.id, selection);
         view.diagnostics_handler
             .immediately_show_diagnostic(doc, view.id);
@@ -4031,6 +4060,7 @@ fn goto_first_change_impl(cx: &mut Context, reverse: bool) {
         };
         if hunk != Hunk::NONE {
             let range = hunk_range(hunk, doc.text().slice(..));
+            push_jump(view, doc);
             doc.set_selection(view.id, Selection::single(range.anchor, range.head));
         }
     }
@@ -4086,6 +4116,7 @@ fn goto_next_change_impl(cx: &mut Context, direction: Direction) {
             }
         });
 
+        push_jump(view, doc);
         doc.set_selection(view.id, selection)
     };
     cx.editor.apply_motion(motion);
@@ -5455,6 +5486,7 @@ fn expand_selection(cx: &mut Context) {
                 // save current selection so it can be restored using shrink_selection
                 view.object_selections.push(current_selection.clone());
 
+                push_jump(view, doc);
                 doc.set_selection(view.id, selection);
             }
         }
@@ -5469,6 +5501,7 @@ fn shrink_selection(cx: &mut Context) {
         // try to restore previous selection
         if let Some(prev_selection) = view.object_selections.pop() {
             if current_selection.contains(&prev_selection) {
+                push_jump(view, doc);
                 doc.set_selection(view.id, prev_selection);
                 return;
             } else {
@@ -5480,6 +5513,7 @@ fn shrink_selection(cx: &mut Context) {
         if let Some(syntax) = doc.syntax() {
             let text = doc.text().slice(..);
             let selection = object::shrink_selection(syntax, text, current_selection.clone());
+            push_jump(view, doc);
             doc.set_selection(view.id, selection);
         }
     };
@@ -5598,6 +5632,7 @@ fn match_brackets(cx: &mut Context) {
         }
     });
 
+    push_jump(view, doc);
     doc.set_selection(view.id, selection);
 }
 
@@ -5908,6 +5943,7 @@ fn goto_ts_object_impl(cx: &mut Context, object: &'static str, direction: Direct
                 }
             });
 
+            push_jump(view, doc);
             doc.set_selection(view.id, selection);
         } else {
             editor.set_status("Syntax-tree is not available in current buffer");
@@ -6053,6 +6089,7 @@ fn select_textobject(cx: &mut Context, objtype: textobject::TextObject) {
                         _ => range,
                     }
                 });
+                push_jump(view, doc);
                 doc.set_selection(view.id, selection);
             };
             cx.editor.apply_motion(textobject);
@@ -6804,7 +6841,10 @@ fn jump_to_label(cx: &mut Context, labels: Vec<Range>, behaviour: Movement) {
                 } else {
                     range.with_direction(Direction::Forward)
                 };
-                doc_mut!(cx.editor, &doc).set_selection(view, range.into());
+                let doc_mut = doc_mut!(cx.editor, &doc);
+                let view_mut = view_mut!(cx.editor);
+                push_jump(view_mut, doc_mut);
+                doc_mut.set_selection(view, range.into());
             }
         });
     });

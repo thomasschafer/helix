@@ -25,7 +25,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use std::{
     borrow::Cow,
     cell::Cell,
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     fs,
     io::{self, stdin},
     num::{NonZeroU8, NonZeroUsize},
@@ -1087,6 +1087,65 @@ pub struct Breakpoint {
     pub log_message: Option<String>,
 }
 
+const LAST_OPENED_DOCS_MAX_LEN: usize = 100;
+
+#[derive(Debug, Clone)]
+pub struct LastOpenedDocs {
+    paths: VecDeque<PathBuf>,
+}
+
+impl Default for LastOpenedDocs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl LastOpenedDocs {
+    pub fn new() -> Self {
+        let paths = VecDeque::with_capacity(LAST_OPENED_DOCS_MAX_LEN);
+        Self { paths }
+    }
+
+    pub fn len(&self) -> usize {
+        self.paths.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.paths.is_empty()
+    }
+
+    pub fn pop_back(&mut self) -> Option<PathBuf> {
+        self.paths.pop_back()
+    }
+
+    // Favour using Editor::extend_last_opened_docs rather than this method directly
+    fn extend(&mut self, paths_to_add: Vec<PathBuf>) {
+        self.paths.extend(paths_to_add);
+
+        let num_to_remove = (self.paths.len() as i64) - (LAST_OPENED_DOCS_MAX_LEN as i64);
+        if num_to_remove > 0 {
+            for _ in 0..num_to_remove {
+                self.paths.pop_front();
+            }
+        }
+    }
+
+    fn retain<F>(&mut self, f: F)
+    where
+        F: FnMut(&PathBuf) -> bool,
+    {
+        self.paths.retain(f);
+    }
+}
+
+impl IntoIterator for LastOpenedDocs {
+    type Item = PathBuf;
+    type IntoIter = std::collections::vec_deque::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.paths.into_iter()
+    }
+}
 use futures_util::stream::{Flatten, Once};
 
 type Diagnostics = BTreeMap<Uri, Vec<(lsp::Diagnostic, DiagnosticProvider)>>;
@@ -1161,6 +1220,9 @@ pub struct Editor {
     pub handlers: Handlers,
 
     pub mouse_down_range: Option<Range>,
+
+    /// The most recently opened docs that have since been closed, with newly closed docs added to the end.
+    pub last_opened_docs: LastOpenedDocs,
     pub cursor_cache: CursorCache,
 }
 
@@ -1282,6 +1344,7 @@ impl Editor {
             needs_redraw: false,
             handlers,
             mouse_down_range: None,
+            last_opened_docs: LastOpenedDocs::new(),
             cursor_cache: CursorCache::default(),
         }
     }
@@ -2060,6 +2123,18 @@ impl Editor {
         self.documents.values()
     }
 
+    pub fn documents_ordered(&self) -> Vec<&Document> {
+        let mut docs = self.documents.values().collect::<Vec<_>>();
+        docs.sort_by_key(|doc| doc.ordering_key());
+        docs
+    }
+
+    pub fn documents_ordered_mut(&mut self) -> Vec<&mut Document> {
+        let mut docs = self.documents.values_mut().collect::<Vec<_>>();
+        docs.sort_by_key(|doc| doc.ordering_key());
+        docs
+    }
+
     #[inline]
     pub fn documents_mut(&mut self) -> impl Iterator<Item = &mut Document> {
         self.documents.values_mut()
@@ -2289,6 +2364,19 @@ impl Editor {
             doc.ensure_view_init(current_view.id);
             current_view.id
         }
+    }
+
+    pub fn extend_last_opened_docs(&mut self, closed_docs: Vec<PathBuf>) {
+        let currently_opened_paths = self
+            .documents()
+            .filter_map(|doc| doc.path())
+            .cloned()
+            .collect::<Vec<_>>();
+
+        self.last_opened_docs.retain(|doc_path| {
+            !closed_docs.contains(doc_path) && !currently_opened_paths.contains(doc_path)
+        });
+        self.last_opened_docs.extend(closed_docs);
     }
 
     pub fn set_cwd(&mut self, path: &Path) -> std::io::Result<()> {

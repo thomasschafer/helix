@@ -144,6 +144,14 @@ fn buffer_close_by_ids_impl(
     force: bool,
 ) -> anyhow::Result<()> {
     cx.block_try_flush_writes()?;
+    let docs_to_close = doc_ids
+        .iter()
+        .filter_map(|&doc_id| {
+            let doc = cx.editor.document(doc_id)?;
+            let path = doc.path()?;
+            Some((path.to_path_buf(), doc.id()))
+        })
+        .collect::<Vec<_>>();
 
     let (modified_ids, modified_names): (Vec<_>, Vec<_>) = doc_ids
         .iter()
@@ -155,6 +163,18 @@ fn buffer_close_by_ids_impl(
             }
         })
         .unzip();
+
+    let closed_docs = docs_to_close
+        .iter()
+        .filter_map(|(doc_path, doc_id)| {
+            if !modified_ids.contains(doc_id) {
+                Some(doc_path.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    cx.editor.extend_last_opened_docs(closed_docs);
 
     if let Some(first) = modified_ids.first() {
         let current = doc!(cx.editor);
@@ -220,6 +240,30 @@ fn buffer_close(
 
     let document_ids = buffer_gather_paths_impl(cx.editor, args);
     buffer_close_by_ids_impl(cx, &document_ids, false)
+}
+
+fn open_recent(
+    cx: &mut compositor::Context,
+    _args: Args,
+    event: PromptEvent,
+) -> anyhow::Result<()> {
+    if event != PromptEvent::Validate {
+        return Ok(());
+    }
+    let open_doc_paths = cx
+        .editor
+        .documents()
+        .filter_map(|doc| doc.path())
+        .cloned()
+        .collect::<Vec<_>>();
+    while let Some(last_opened) = cx.editor.last_opened_docs.pop_back() {
+        if !open_doc_paths.contains(&last_opened) {
+            cx.editor.open(&last_opened, Action::Replace)?;
+            return Ok(());
+        }
+    }
+
+    bail!("No recent files found");
 }
 
 fn force_buffer_close(
@@ -336,6 +380,53 @@ fn buffer_previous(
     }
 
     goto_buffer(cx.editor, Direction::Backward, 1);
+    Ok(())
+}
+
+fn buffer_move_left(
+    cx: &mut compositor::Context,
+    _args: Args,
+    event: PromptEvent,
+) -> anyhow::Result<()> {
+    buffer_move_impl(cx, event, true)
+}
+
+fn buffer_move_right(
+    cx: &mut compositor::Context,
+    _args: Args,
+    event: PromptEvent,
+) -> anyhow::Result<()> {
+    buffer_move_impl(cx, event, false)
+}
+
+fn buffer_move_impl(
+    cx: &mut compositor::Context,
+    event: PromptEvent,
+    reverse: bool,
+) -> anyhow::Result<()> {
+    if event != PromptEvent::Validate {
+        return Ok(());
+    }
+
+    let (_, doc) = current!(cx.editor);
+    let current = doc.ordering_key();
+
+    let mut docs = cx.editor.documents_ordered_mut();
+    if reverse {
+        docs.reverse();
+    }
+    let mut docs = docs
+        .iter_mut()
+        .skip_while(|doc| doc.ordering_key() != current)
+        .take(2)
+        .collect::<Vec<_>>();
+
+    if let [cur, prev] = &mut docs[..] {
+        let prev_ordering_key = prev.ordering_key();
+        prev.set_ordering_key(cur.ordering_key());
+        cur.set_ordering_key(prev_ordering_key);
+    }
+
     Ok(())
 }
 
@@ -2408,9 +2499,12 @@ fn run_shell_command(
                         format!("```sh\n{}\n```", output.trim_end()),
                         editor.syn_loader.clone(),
                     );
-                    let popup = Popup::new("shell", contents).position(Some(
-                        helix_core::Position::new(editor.cursor().0.unwrap_or_default().row, 2),
-                    ));
+                    let popup = Popup::new("shell", contents)
+                        .position(Some(helix_core::Position::new(
+                            editor.cursor().0.unwrap_or_default().row,
+                            2,
+                        )))
+                        .auto_close(true);
                     compositor.replace_or_push("shell", popup);
                 }
                 editor.set_status("Command run");
@@ -2712,6 +2806,28 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         },
     },
     TypableCommand {
+        name: "open-no-completions",
+        aliases: &["onc"],
+        doc: "Open a file from disk into the current view (with no filename completions).",
+        fun: open,
+        completer: CommandCompleter::none(),
+        signature: Signature {
+            positionals: (1, None),
+            ..Signature::DEFAULT
+        },
+    },
+    TypableCommand {
+        name: "open-recent",
+        aliases: &["or"],
+        doc: "Open the most recently closed file.",
+        fun: open_recent,
+        completer: CommandCompleter::none(),
+        signature: Signature {
+            positionals: (0, Some(0)),
+            ..Signature::DEFAULT
+        },
+    },
+    TypableCommand {
         name: "buffer-close",
         aliases: &["bc", "bclose"],
         doc: "Close the current buffer.",
@@ -2787,6 +2903,28 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         aliases: &["bp", "bprev"],
         doc: "Goto previous buffer.",
         fun: buffer_previous,
+        completer: CommandCompleter::none(),
+        signature: Signature {
+            positionals: (0, Some(0)),
+            ..Signature::DEFAULT
+        },
+    },
+    TypableCommand {
+        name: "buffer-move-left",
+        aliases: &[],
+        doc: "Move buffer to the left",
+        fun: buffer_move_left,
+        completer: CommandCompleter::none(),
+        signature: Signature {
+            positionals: (0, Some(0)),
+            ..Signature::DEFAULT
+        },
+    },
+    TypableCommand {
+        name: "buffer-move-right",
+        aliases: &[],
+        doc: "Move buffer to the right",
+        fun: buffer_move_right,
         completer: CommandCompleter::none(),
         signature: Signature {
             positionals: (0, Some(0)),
