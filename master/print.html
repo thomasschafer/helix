@@ -589,6 +589,7 @@ function or block of code.</p>
 <tr><td><code>c</code></td><td>Comment</td></tr>
 <tr><td><code>T</code></td><td>Test</td></tr>
 <tr><td><code>g</code></td><td>Change</td></tr>
+<tr><td><code>x</code></td><td>(X)HTML element</td></tr>
 </tbody></table>
 </div>
 <blockquote>
@@ -1013,6 +1014,8 @@ useful when you're simply looking over text and not actively editing it.</p>
 <tr><td><code>[g</code></td><td>Go to previous change</td><td><code>goto_prev_change</code></td></tr>
 <tr><td><code>]G</code></td><td>Go to last change</td><td><code>goto_last_change</code></td></tr>
 <tr><td><code>[G</code></td><td>Go to first change</td><td><code>goto_first_change</code></td></tr>
+<tr><td><code>[x</code></td><td>Go to next (X)HTML element</td><td><code>goto_next_xml_element</code></td></tr>
+<tr><td><code>]x</code></td><td>Go to previous (X)HTML element</td><td><code>goto_prev_xml_element</code></td></tr>
 <tr><td><code>]Space</code></td><td>Add newline below</td><td><code>add_newline_below</code></td></tr>
 <tr><td><code>[Space</code></td><td>Add newline above</td><td><code>add_newline_above</code></td></tr>
 </tbody></table>
@@ -1194,6 +1197,7 @@ space.B = ":echo %sh{git blame -L %{cursor_line},+1 %{buffer_name}}"
 <tr><td><code>:quit</code>, <code>:q</code></td><td>Close the current view.</td></tr>
 <tr><td><code>:quit!</code>, <code>:q!</code></td><td>Force close the current view, ignoring unsaved changes.</td></tr>
 <tr><td><code>:open</code>, <code>:o</code>, <code>:edit</code>, <code>:e</code></td><td>Open a file from disk into the current view.</td></tr>
+<tr><td><code>:open-no-completions</code>, <code>:onc</code></td><td>Open a file from disk into the current view (with no filename completions).</td></tr>
 <tr><td><code>:open-recent</code>, <code>:or</code></td><td>Open the most recently closed file.</td></tr>
 <tr><td><code>:buffer-close</code>, <code>:bc</code>, <code>:bclose</code></td><td>Close the current buffer.</td></tr>
 <tr><td><code>:buffer-close!</code>, <code>:bc!</code>, <code>:bclose!</code></td><td>Close the current buffer forcefully, ignoring unsaved changes.</td></tr>
@@ -1203,6 +1207,8 @@ space.B = ":echo %sh{git blame -L %{cursor_line},+1 %{buffer_name}}"
 <tr><td><code>:buffer-close-all!</code>, <code>:bca!</code>, <code>:bcloseall!</code></td><td>Force close all buffers ignoring unsaved changes without quitting.</td></tr>
 <tr><td><code>:buffer-next</code>, <code>:bn</code>, <code>:bnext</code></td><td>Goto next buffer.</td></tr>
 <tr><td><code>:buffer-previous</code>, <code>:bp</code>, <code>:bprev</code></td><td>Goto previous buffer.</td></tr>
+<tr><td><code>:buffer-move-left</code></td><td>Move buffer to the left</td></tr>
+<tr><td><code>:buffer-move-right</code></td><td>Move buffer to the right</td></tr>
 <tr><td><code>:write</code>, <code>:w</code></td><td>Write changes to disk. Accepts an optional path (:write some/path.txt)</td></tr>
 <tr><td><code>:write!</code>, <code>:w!</code></td><td>Force write changes to disk creating necessary subdirectories. Accepts an optional path (:write! some/path.txt)</td></tr>
 <tr><td><code>:write-buffer-close</code>, <code>:wbc</code></td><td>Write changes to disk and closes the buffer. Accepts an optional path (:write-buffer-close some/path.txt)</td></tr>
@@ -1554,6 +1560,8 @@ space.B = ":echo %sh{git blame -L %{cursor_line},+1 %{buffer_name}}"
 <tr><td><code>goto_prev_comment</code></td><td>Goto previous comment</td><td>normal: <code>[c</code>, select: <code>[c</code></td></tr>
 <tr><td><code>goto_next_test</code></td><td>Goto next test</td><td>normal: <code>]T</code>, select: <code>]T</code></td></tr>
 <tr><td><code>goto_prev_test</code></td><td>Goto previous test</td><td>normal: <code>[T</code>, select: <code>[T</code></td></tr>
+<tr><td><code>goto_next_xml_element</code></td><td>Goto next (X)HTML element</td><td>normal: <code>]x</code>, select: <code>]x</code></td></tr>
+<tr><td><code>goto_prev_xml_element</code></td><td>Goto previous (X)HTML element</td><td>normal: <code>[x</code>, select: <code>[x</code></td></tr>
 <tr><td><code>goto_next_entry</code></td><td>Goto next pairing</td><td>normal: <code>]e</code>, select: <code>]e</code></td></tr>
 <tr><td><code>goto_prev_entry</code></td><td>Goto previous pairing</td><td>normal: <code>[e</code>, select: <code>[e</code></td></tr>
 <tr><td><code>goto_next_paragraph</code></td><td>Goto next paragraph</td><td>normal: <code>]p</code>, select: <code>]p</code></td></tr>
@@ -1705,7 +1713,7 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>hocon</td><td>✓</td><td>✓</td><td>✓</td><td></td></tr>
 <tr><td>hoon</td><td>✓</td><td></td><td></td><td></td></tr>
 <tr><td>hosts</td><td>✓</td><td></td><td></td><td></td></tr>
-<tr><td>html</td><td>✓</td><td></td><td></td><td><code>vscode-html-language-server</code>, <code>superhtml</code></td></tr>
+<tr><td>html</td><td>✓</td><td>✓</td><td></td><td><code>vscode-html-language-server</code>, <code>superhtml</code></td></tr>
 <tr><td>htmldjango</td><td>✓</td><td></td><td></td><td><code>djlsp</code>, <code>vscode-html-language-server</code>, <code>superhtml</code></td></tr>
 <tr><td>hurl</td><td>✓</td><td>✓</td><td>✓</td><td></td></tr>
 <tr><td>hyprlang</td><td>✓</td><td></td><td>✓</td><td><code>hyprls</code></td></tr>
@@ -1718,7 +1726,10 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>java</td><td>✓</td><td>✓</td><td>✓</td><td><code>jdtls</code></td></tr>
 <tr><td>javascript</td><td>✓</td><td>✓</td><td>✓</td><td><code>typescript-language-server</code></td></tr>
 <tr><td>jinja</td><td>✓</td><td></td><td></td><td></td></tr>
+<tr><td>jjconfig</td><td>✓</td><td>✓</td><td>✓</td><td><code>taplo</code>, <code>tombi</code></td></tr>
 <tr><td>jjdescription</td><td>✓</td><td></td><td></td><td></td></tr>
+<tr><td>jjrevset</td><td>✓</td><td></td><td></td><td></td></tr>
+<tr><td>jjtemplate</td><td>✓</td><td></td><td></td><td></td></tr>
 <tr><td>jq</td><td>✓</td><td>✓</td><td></td><td><code>jq-lsp</code></td></tr>
 <tr><td>jsdoc</td><td>✓</td><td></td><td></td><td></td></tr>
 <tr><td>json</td><td>✓</td><td>✓</td><td>✓</td><td><code>vscode-json-language-server</code></td></tr>
@@ -1872,7 +1883,7 @@ Languages</a> guide for more language configuration information.</p>
 <tr><td>wit</td><td>✓</td><td></td><td>✓</td><td></td></tr>
 <tr><td>wren</td><td>✓</td><td>✓</td><td>✓</td><td></td></tr>
 <tr><td>xit</td><td>✓</td><td></td><td></td><td></td></tr>
-<tr><td>xml</td><td>✓</td><td></td><td>✓</td><td></td></tr>
+<tr><td>xml</td><td>✓</td><td>✓</td><td>✓</td><td></td></tr>
 <tr><td>xtc</td><td>✓</td><td></td><td></td><td></td></tr>
 <tr><td>yaml</td><td>✓</td><td>✓</td><td>✓</td><td><code>yaml-language-server</code>, <code>ansible-language-server</code></td></tr>
 <tr><td>yara</td><td>✓</td><td></td><td></td><td><code>yls</code></td></tr>
@@ -3138,6 +3149,8 @@ for example).</p>
 <tr><td><code>comment.around</code></td></tr>
 <tr><td><code>entry.inside</code></td></tr>
 <tr><td><code>entry.around</code></td></tr>
+<tr><td><code>xml-element.inside</code></td></tr>
+<tr><td><code>xml-element.around</code></td></tr>
 </tbody></table>
 </div>
 <p><a href="https://github.com/search?q=repo%3Ahelix-editor%2Fhelix+path%3A%2A%2A/textobjects.scm&amp;type=Code&amp;ref=advsearch&amp;l=&amp;l=">Example query files</a> can be found in the helix GitHub repository.</p>
