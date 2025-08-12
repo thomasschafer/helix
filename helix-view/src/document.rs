@@ -218,6 +218,7 @@ pub struct Document {
 
     pub previous_diagnostic_ids: HashMap<LanguageServerId, String>,
 
+    ordering_key: Option<DocumentId>,
     /// Annotations for LSP document color swatches
     pub color_swatches: Option<DocumentColorSwatches>,
     /// Cached LSP document links for navigation (e.g. goto_file).
@@ -773,6 +774,7 @@ impl Document {
             jump_labels: HashMap::new(),
             document_highlights: HashMap::new(),
             code_action_hints: HashSet::new(),
+            ordering_key: None,
             color_swatches: None,
             document_links: Vec::new(),
             color_swatch_controller: TaskController::new(),
@@ -2514,6 +2516,14 @@ impl Document {
 
     pub fn has_language_server_with_feature(&self, feature: LanguageServerFeature) -> bool {
         self.language_servers_with_feature(feature).next().is_some()
+    }
+
+    pub fn ordering_key(&self) -> DocumentId {
+        self.ordering_key.unwrap_or(self.id)
+    }
+
+    pub fn set_ordering_key(&mut self, key: DocumentId) {
+        self.ordering_key = Some(key);
     }
 }
 
