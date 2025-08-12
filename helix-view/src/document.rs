@@ -206,6 +206,7 @@ pub struct Document {
     pub name: Option<String>,
     pub readonly: bool,
 
+    ordering_key: Option<DocumentId>,
     /// Annotations for LSP document color swatches
     pub color_swatches: Option<DocumentColorSwatches>,
     // NOTE: ideally this would live on the handler for color swatches. This is blocked on a
@@ -729,6 +730,7 @@ impl Document {
             name: None,
             readonly: false,
             jump_labels: HashMap::new(),
+            ordering_key: None,
             color_swatches: None,
             color_swatch_controller: TaskController::new(),
             uri: None,
@@ -2297,6 +2299,14 @@ impl Document {
     /// (since it often means inlay hints have been fully deactivated).
     pub fn reset_all_inlay_hints(&mut self) {
         self.inlay_hints = Default::default();
+    }
+
+    pub fn ordering_key(&self) -> DocumentId {
+        self.ordering_key.unwrap_or(self.id)
+    }
+
+    pub fn set_ordering_key(&mut self, key: DocumentId) {
+        self.ordering_key = Some(key);
     }
 }
 

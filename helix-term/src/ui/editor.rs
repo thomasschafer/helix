@@ -615,7 +615,7 @@ impl EditorView {
         let mut x = viewport.x;
         let current_doc = view!(editor).doc;
 
-        for doc in editor.documents() {
+        for doc in editor.documents_ordered() {
             let fname = doc
                 .path()
                 .unwrap_or(&scratch)
