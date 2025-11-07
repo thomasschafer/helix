@@ -2706,7 +2706,7 @@ impl Editor {
         let currently_opened_paths = self
             .documents()
             .filter_map(|doc| doc.path())
-            .cloned()
+            .map(Path::to_path_buf)
             .collect::<Vec<_>>();
 
         self.last_opened_docs.retain(|doc_path| {

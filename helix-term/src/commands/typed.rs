@@ -293,7 +293,7 @@ fn open_recent(
         .editor
         .documents()
         .filter_map(|doc| doc.path())
-        .cloned()
+        .map(Path::to_path_buf)
         .collect::<Vec<_>>();
     while let Some(last_opened) = cx.editor.last_opened_docs.pop_back() {
         if !open_doc_paths.contains(&last_opened) {
