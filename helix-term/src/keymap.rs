@@ -1,6 +1,7 @@
 pub mod default;
 pub mod macros;
 
+use crate::commands::FallbackCommand;
 pub use crate::commands::MappableCommand;
 pub use default::default;
 
@@ -28,6 +29,8 @@ pub struct KeyTrieNode {
     map: IndexMap<KeyEvent, KeyTrie>,
     #[serde(skip)]
     pub is_sticky: bool,
+    #[serde(skip)]
+    fallback: Option<FallbackCommand>,
 }
 
 impl KeyTrieNode {
@@ -36,6 +39,7 @@ impl KeyTrieNode {
             name: name.to_string(),
             map,
             is_sticky: false,
+            fallback: None,
         }
     }
 
@@ -75,13 +79,16 @@ impl KeyTrieNode {
             }
         }
 
-        let body: Vec<_> = body
+        let mut body: Vec<_> = body
             .into_iter()
             .map(|(events, desc)| {
                 let events = events.iter().map(ToString::to_string).collect::<Vec<_>>();
                 (events.join(", "), desc)
             })
             .collect();
+        if let Some(fallback) = self.fallback.as_ref() {
+            body.push(("...".to_string(), fallback.doc()));
+        }
         Info::new(self.name.clone(), &body)
     }
 }
@@ -259,6 +266,28 @@ impl KeyTrie {
         }
         Some(trie)
     }
+
+    pub fn search_fallback(&self, keys: &[KeyEvent]) -> Option<&FallbackCommand> {
+        // TODO: this is copied from above, hacky
+        let mut trie = self;
+        let mut keys = keys.iter().peekable();
+        while let Some(key) = keys.next() {
+            trie = match trie {
+                KeyTrie::Node(map) => match map.get(key) {
+                    Some(i) => Some(i),
+                    None => {
+                        if keys.peek().is_none() {
+                            return map.fallback.as_ref();
+                        }
+                        None
+                    }
+                },
+                // leaf encountered while keys left to process
+                KeyTrie::MappableCommand(_) | KeyTrie::Sequence(_) => None,
+            }?
+        }
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -273,6 +302,7 @@ pub enum KeymapResult {
     /// Key is invalid in combination with previous keys. Contains keys leading upto
     /// and including current (invalid) key.
     Cancelled(Vec<KeyEvent>),
+    Fallback(FallbackCommand, char),
 }
 
 /// A map of command names to keybinds that will execute the command.
@@ -370,7 +400,16 @@ impl Keymaps {
                 self.state.clear();
                 KeymapResult::MatchedSequence(cmds.clone())
             }
-            None => KeymapResult::Cancelled(self.state.drain(..).collect()),
+            None => {
+                if let Some(ch) = key.char() {
+                    if let Some(fallback) = trie.search_fallback(&self.state[1..]) {
+                        self.state.clear();
+                        return KeymapResult::Fallback(fallback.clone(), ch);
+                    }
+                }
+
+                KeymapResult::Cancelled(self.state.drain(..).collect())
+            }
         }
     }
 
