@@ -111,6 +111,7 @@
 ;;
 ;; ```scheme
 ;; (register-hook 'editor-will-quit (lambda () (log::info! "bye")))
+;; ```
 (define (register-hook event-kind callback-fn)
   (helix.register-hook event-kind callback-fn))
 

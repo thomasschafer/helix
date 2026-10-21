@@ -5711,3 +5711,52 @@ pub fn insert_string(cx: &mut Context, string: SteelString) {
     );
     doc.apply(&transaction, view.id);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use helix_view::editor::GutterConfig;
+    use helix_view::graphics::Rect;
+    use helix_view::tree::{Layout, Tree};
+    use helix_view::View;
+
+    fn list(value: &SteelVal) -> Vec<SteelVal> {
+        match value {
+            SteelVal::ListV(items) => items.iter().cloned().collect(),
+            other => panic!("expected a list, found {other}"),
+        }
+    }
+
+    fn view_id(value: &SteelVal) -> ViewId {
+        ViewId::from_steelval(value).expect("expected a ViewId")
+    }
+
+    #[test]
+    fn view_tree_lists_each_split_layout_before_its_children() {
+        let mut tree = Tree::new(Rect::new(0, 0, 180, 80));
+        tree.insert(View::new(DocumentId::default(), GutterConfig::default()));
+        let left = tree.focus;
+        tree.split(
+            View::new(DocumentId::default(), GutterConfig::default()),
+            Layout::Vertical,
+        );
+        let right = tree.focus;
+        tree.focus = left;
+        tree.split(
+            View::new(DocumentId::default(), GutterConfig::default()),
+            Layout::Horizontal,
+        );
+        let bottom_left = tree.focus;
+
+        let root = tree_node_to_steelval(tree.structure()).unwrap();
+
+        let root = list(&root);
+        assert_eq!(root.len(), 3);
+        assert_eq!(root[0], SteelVal::StringV("vertical".into()));
+        let left_split = list(&root[1]);
+        assert_eq!(left_split[0], SteelVal::StringV("horizontal".into()));
+        assert_eq!(view_id(&left_split[1]), left);
+        assert_eq!(view_id(&left_split[2]), bottom_left);
+        assert_eq!(view_id(&root[2]), right);
+    }
+}
