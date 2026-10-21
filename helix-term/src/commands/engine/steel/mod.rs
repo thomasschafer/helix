@@ -78,7 +78,10 @@ use crate::{
     commands::{insert, TYPABLE_COMMAND_LIST},
     compositor::{self, Component, Compositor},
     config::Config,
-    events::{OnModeSwitch, PostCommand, PostInsertChar, TerminalFocusGained, TerminalFocusLost},
+    events::{
+        EditorWillQuit, OnModeSwitch, PostCommand, PostInsertChar, TerminalFocusGained,
+        TerminalFocusLost,
+    },
     job::{self, Callback, Jobs},
     keymap::{self, merge_keys, KeyTrie, KeymapResult, MappableCommand},
     ui::{self, picker::PathOrId, PickerColumn, Popup, Prompt, PromptEvent},
@@ -1457,6 +1460,8 @@ fn load_editor_api(engine: &mut Engine, generate_sources: bool) {
         })
         .register_fn_with_ctx(CTX, "themes->list", get_themes)
         .register_fn_with_ctx(CTX, "editor-all-documents", cx_editor_all_documents)
+        .register_fn_with_ctx(CTX, "editor-view-tree", cx_view_tree)
+        .register_fn_with_ctx(CTX, "editor-view-cursor", cx_view_cursor)
         .register_fn_with_ctx(CTX, "cx->cursor", |cx: &mut Context| cx.editor.cursor())
         .register_fn_with_ctx(CTX, "current-cursor", |cx: &mut Context| cx.editor.cursor())
         .register_fn_with_ctx(CTX, "editor-focused-buffer-area", current_buffer_area)
@@ -3459,6 +3464,7 @@ fn register_hook(event_kind: String, callback_fn: SteelVal) -> steel::UnRecovera
         "document-saved" => register_document_saved(generation, rooted),
         "document-changed" => register_document_changed(generation, rooted),
         "document-closed" => register_document_closed(generation, rooted),
+        "editor-will-quit" => register_editor_will_quit(generation, rooted),
         _ => steelerr!(Generic => "Unable to register hook: Unknown event type: {}", event_kind)
             .into(),
     }
@@ -3624,6 +3630,19 @@ fn register_document_focus_lost(
             construct_callback(generation, cloned_func, [doc_id.into_steelval().unwrap()]);
         job::dispatch_blocking_jobs(callback);
 
+        Ok(())
+    });
+    Ok(SteelVal::Void).into()
+}
+
+fn register_editor_will_quit(
+    generation: usize,
+    rooted: RootedSteelVal,
+) -> steel::UnRecoverableResult {
+    // Called directly rather than queued, because no event loop iteration
+    // follows to run queued callbacks.
+    register_hook!(move |event: &mut EditorWillQuit<'_, '_>| {
+        generation_call_with_args(generation, event.cx, rooted.value().clone(), &mut []);
         Ok(())
     });
     Ok(SteelVal::Void).into()
@@ -4915,6 +4934,34 @@ fn document_path(cx: &mut Context, doc_id: DocumentId) -> Option<String> {
 
 fn cx_editor_all_documents(cx: &mut Context) -> Vec<DocumentId> {
     cx.editor.documents.keys().copied().collect()
+}
+
+fn cx_view_tree(cx: &mut Context) -> steel::rvals::Result<SteelVal> {
+    tree_node_to_steelval(cx.editor.tree.structure())
+}
+
+fn tree_node_to_steelval(node: helix_view::tree::TreeNode) -> steel::rvals::Result<SteelVal> {
+    match node {
+        helix_view::tree::TreeNode::View(view_id) => view_id.into_steelval(),
+        helix_view::tree::TreeNode::Container(layout, children) => {
+            let layout = match layout {
+                helix_view::tree::Layout::Vertical => "vertical",
+                helix_view::tree::Layout::Horizontal => "horizontal",
+            };
+            let mut items = vec![layout.into_steelval()?];
+            for child in children {
+                items.push(tree_node_to_steelval(child)?);
+            }
+            items.into_steelval()
+        }
+    }
+}
+
+fn cx_view_cursor(cx: &mut Context, view_id: helix_view::ViewId) -> Option<usize> {
+    let view = cx.editor.tree.try_get(view_id)?;
+    let doc = cx.editor.documents.get(&view.doc)?;
+    let selection = doc.selections().get(&view_id)?;
+    Some(selection.primary().cursor(doc.text().slice(..)))
 }
 
 fn cx_get_document_language(cx: &mut Context, doc_id: DocumentId) -> Option<String> {

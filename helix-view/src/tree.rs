@@ -52,6 +52,14 @@ pub enum Layout {
     // could explore stacked/tabbed
 }
 
+/// The split structure of a [`Tree`], for callers that save or mirror the
+/// layout without access to its nodes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TreeNode {
+    View(ViewId),
+    Container(Layout, Vec<TreeNode>),
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Direction {
     Up,
@@ -458,6 +466,24 @@ impl Tree {
         Traverse::new(self)
     }
 
+    pub fn structure(&self) -> TreeNode {
+        self.structure_from(self.root)
+    }
+
+    fn structure_from(&self, id: ViewId) -> TreeNode {
+        match &self.nodes[id].content {
+            Content::View(_) => TreeNode::View(id),
+            Content::Container(container) => TreeNode::Container(
+                container.layout,
+                container
+                    .children
+                    .iter()
+                    .map(|&child| self.structure_from(child))
+                    .collect(),
+            ),
+        }
+    }
+
     // Finds the split in the given direction if it exists
     pub fn find_split_in_direction(&self, id: ViewId, direction: Direction) -> Option<ViewId> {
         let parent = self.nodes[id].parent;
@@ -800,6 +826,47 @@ mod test {
         assert_eq!(None, tree.find_split_in_direction(r0, Direction::Down));
         assert_eq!(None, tree.find_split_in_direction(r0, Direction::Right));
         assert_eq!(None, tree.find_split_in_direction(r0, Direction::Up));
+    }
+
+    #[test]
+    fn structure_mirrors_nested_splits() {
+        let mut tree = Tree::new(Rect::new(0, 0, 180, 80));
+        tree.insert(View::new(DocumentId::default(), GutterConfig::default()));
+        let left = tree.focus;
+        tree.split(
+            View::new(DocumentId::default(), GutterConfig::default()),
+            Layout::Vertical,
+        );
+        let right = tree.focus;
+        tree.focus = left;
+        tree.split(
+            View::new(DocumentId::default(), GutterConfig::default()),
+            Layout::Horizontal,
+        );
+        let bottom_left = tree.focus;
+
+        assert_eq!(
+            tree.structure(),
+            TreeNode::Container(
+                Layout::Vertical,
+                vec![
+                    TreeNode::Container(
+                        Layout::Horizontal,
+                        vec![TreeNode::View(left), TreeNode::View(bottom_left)],
+                    ),
+                    TreeNode::View(right),
+                ],
+            )
+        );
+    }
+
+    #[test]
+    fn structure_of_empty_tree_is_an_empty_root() {
+        let tree = Tree::new(Rect::new(0, 0, 180, 80));
+        assert_eq!(
+            tree.structure(),
+            TreeNode::Container(Layout::Vertical, Vec::new())
+        );
     }
 
     #[test]

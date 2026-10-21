@@ -26,6 +26,7 @@
 ;; * 'document-saved
 ;; * 'document-changed
 ;; * 'document-closed
+;; * 'editor-will-quit
 ;;
 ;; Each of these expects a function with a slightly different signature to accept
 ;; the event payload.
@@ -100,6 +101,16 @@
 ;; ### Example:
 ;; ```scheme
 ;; (register-hook 'document-closed (lambda (closed-event) (log::info! (doc-closed-id closed-event))))
+;; ```
+;;
+;; ## editor-will-quit
+;;
+;; Expects a function with no arguments. It runs once when the user closes the
+;; last view, for example with `:quit` or `:quit-all`, just before the editor exits.
+;; It does not run when a signal ends the editor, and work it queues does not run.
+;;
+;; ```scheme
+;; (register-hook 'editor-will-quit (lambda () (log::info! "bye")))
 (define (register-hook event-kind callback-fn)
   (helix.register-hook event-kind callback-fn))
 
@@ -176,6 +187,32 @@
 ;;```
 ;;
 (define editor-all-documents helix.editor-all-documents)
+
+(provide editor-view-tree)
+;;@doc
+;;
+;;Get the split layout of the editor. A view is its `ViewId`. A split is a list
+;;whose first element is its layout, "vertical" for views side by side as created
+;;by `vsplit` or "horizontal" for views stacked as created by `hsplit`, followed by
+;;its children in order.
+;;
+;;```scheme
+;;(editor-view-tree) -> (or ViewId? (listof (or string? ViewId? list?)))
+;;```
+;;
+(define editor-view-tree helix.editor-view-tree)
+
+(provide editor-view-cursor)
+;;@doc
+;;
+;;Get the character index of the primary cursor in a view, which need not be
+;;focused, or `#f` when the view does not exist.
+;;
+;;```scheme
+;;(editor-view-cursor view-id) -> (or int? #f)
+;;```
+;;
+(define editor-view-cursor helix.editor-view-cursor)
 
 (provide cx->cursor)
 ;;@doc

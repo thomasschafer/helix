@@ -328,12 +328,25 @@ impl Application {
         }
     }
 
+    fn dispatch_editor_will_quit(&mut self) {
+        let mut cx = crate::commands::Context {
+            register: None,
+            count: None,
+            editor: &mut self.editor,
+            callback: Vec::new(),
+            on_next_key_callback: None,
+            jobs: &mut self.jobs,
+        };
+        helix_event::dispatch(crate::events::EditorWillQuit { cx: &mut cx });
+    }
+
     pub async fn event_loop_until_idle<S>(&mut self, input_stream: &mut S) -> bool
     where
         S: Stream<Item = std::io::Result<TerminalEvent>> + Unpin,
     {
         loop {
             if self.editor.should_close() {
+                self.dispatch_editor_will_quit();
                 return false;
             }
 

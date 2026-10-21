@@ -15,6 +15,9 @@ events! {
     PostCommand<'a, 'cx> { command: & 'a MappableCommand, cx: &'a mut commands::Context<'cx> }
     TerminalFocusGained<'a, 'cx> { cx: &'a mut commands::Context<'cx> }
     TerminalFocusLost<'a, 'cx> { cx: &'a mut commands::Context<'cx> }
+    // The user closed the last view, so the editor is about to exit. Signals
+    // that end the editor do not fire this.
+    EditorWillQuit<'a, 'cx> { cx: &'a mut commands::Context<'cx> }
 }
 
 pub fn register() {
@@ -23,6 +26,7 @@ pub fn register() {
     register_event::<PostCommand>();
     register_event::<TerminalFocusGained>();
     register_event::<TerminalFocusLost>();
+    register_event::<EditorWillQuit>();
     register_event::<DocumentDidOpen>();
     register_event::<DocumentDidChange>();
     register_event::<DocumentDidClose>();
